@@ -12,9 +12,7 @@ class Utils(commands.Cog):
         embed = Embed(title="Help", description="List of commands and their usages:", color=discord.Color.blue())
 
         # settempchannel command details
-        embed.add_field(name="!settempchannel", value="Sets the current channel as a temporary channel.", inline=False)
+        embed.add_field(name="!login <vpsname>", value="Logs in to a VPS and sets that channel state to 'logged in'", inline=False)
 
-        # setcleartime command details
-        embed.add_field(name="!setcleartime [minutes]", value="Sets the clear time for messages in the current temp channel. Value is in minutes.", inline=False)
 
         await ctx.send(embed=embed)
