@@ -10,8 +10,8 @@ from discord.ext import commands
 # Bot Modules
 
 # Bot Cogs
-from cogs.vps_login import VPSLogin
-from cogs.utils_commands import Utils
+from cogs.vps_login_cog import VPSLogin
+from cogs.utils_commands_cog import Utils
 
 
 # ==============================
@@ -43,7 +43,7 @@ bot.remove_command('help')
 @bot.event
 async def on_ready():
     print(f'Logged in as {bot.user}')
-
+    
     await bot.add_cog(VPSLogin(bot))
     await bot.add_cog(Utils(bot))
 
