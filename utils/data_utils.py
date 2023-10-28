@@ -1,6 +1,7 @@
 # Standard Libraries
 import os
 from datetime import datetime
+import configparser
 
 # Third-party Libraries
 import bson
@@ -37,3 +38,42 @@ def load_from_bson(filepath):
         return {}
     with open(filepath, 'rb') as f:
         return bson.BSON(f.read()).decode()
+    
+
+def load_vps_configs(config):
+    """
+    Load VPS configurations from a given config parser object.
+    """
+    vpses = {}
+    for section in config.sections():
+        if section != "Bot":  # Exclude the Bot section
+            vpses[section] = {
+                'IP': config[section]['IP'],
+                'Username': config[section]['Username'],
+                'Password': config[section]['Password']
+            }
+    return vpses
+
+def setup_cache_directory(base_filename=__file__):
+    """
+    Set up the cache directory and return its path.
+    """
+    BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(base_filename), '..'))
+    CACHE_DIR = os.path.join(BASE_DIR, 'cache')
+
+    if not os.path.exists(CACHE_DIR):
+        os.makedirs(CACHE_DIR)
+
+    return CACHE_DIR
+
+def get_bot_token(config_file='config.ini'):
+    """
+    Retrieve the bot token from a configuration file.
+    """
+    config = configparser.ConfigParser()
+    
+    try:
+        config.read(config_file)
+        return config['Bot']['Token']
+    except (configparser.Error, KeyError) as e:
+        raise SystemExit("Error reading configuration file.") from e

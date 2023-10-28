@@ -8,41 +8,20 @@ from discord.ext import commands
 from discord import app_commands
 
 # Local Modules
-from utils.vps_utils import (establish_ssh_connection, 
-                             send_response_embed, 
-                             edit_response_embed, 
-                             handle_connection_error,
-                             fetch_vps_stats,
-                             process_vps_stats)
-from utils.data_utils import get_login_state
+from utils.ssh_utils import (establish_ssh_connection, fetch_vps_stats, process_vps_stats)
+from utils.embed_utils import (send_response_embed, handle_connection_error)
+from utils.data_utils import (get_login_state, load_vps_configs, setup_cache_directory)
 
-# Directory constants
-BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
-CACHE_DIR = os.path.join(BASE_DIR, 'cache', 'gamequeue')
-
-# ---- DIRECTORY SETUP ---- #
-# Create directories if they don't exist
-for directory in [CACHE_DIR]:
-    if not os.path.exists(directory):
-        os.makedirs(directory)
+# Initialize cache directory
+CACHE_DIR = setup_cache_directory()
 
 class Utils(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
         self.config = configparser.ConfigParser()
         self.config.read('config.ini')
-        self.vpses = self.load_vps_configs()
+        self.vpses = load_vps_configs(self.config)
 
-    def load_vps_configs(self):
-        vpses = {}
-        for section in self.config.sections():
-            if section != "Bot":  # Exclude the Bot section
-                vpses[section] = {
-                    'IP': self.config[section]['IP'],
-                    'Username': self.config[section]['Username'],
-                    'Password': self.config[section]['Password']
-                }
-        return vpses
 
     @app_commands.command(name="vpsresources", description="Check the resource usages of the logged-in VPS")
     async def slash_vps_resources(self, interaction:discord.Interaction):

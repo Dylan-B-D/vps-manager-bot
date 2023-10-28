@@ -1,12 +1,11 @@
-# utils/vps_helpers.py
+# utils/ssh_utils.py
+
 
 # Third-party Libraries
 import asyncssh
 import asyncio
-import discord
 
 
-#-------Creates a connection to a VPS------#
 async def establish_ssh_connection(vps):
     return await asyncssh.connect(
         vps['IP'],
@@ -14,19 +13,6 @@ async def establish_ssh_connection(vps):
         password=vps['Password'],
         known_hosts=None
     )
-
-#-------Cleans up embed code------#
-async def send_response_embed(interaction, title, description, color):
-    embed = discord.Embed(title=title, description=description, color=color)
-    await interaction.response.send_message(embed=embed)
-
-async def edit_response_embed(interaction, title, description, color):
-    embed = discord.Embed(title=title, description=description, color=color)
-    await interaction.edit_original_response(embed=embed)
-
-async def handle_connection_error(e, interaction, vps_name):
-    error_msg = "Connection failed" if "The semaphore timeout period has expired" in str(e) else str(e)
-    await edit_response_embed(interaction, f"VPS Resources - {vps_name}", error_msg, discord.Color.red())
 
 async def fetch_vps_stats(conn):
     # Fetch VPS stats using the SSH connection

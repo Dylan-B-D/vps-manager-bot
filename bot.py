@@ -5,26 +5,18 @@ import configparser
 import discord
 from discord.ext import commands
 
-# Bot Data
-
-# Bot Modules
-
 # Bot Cogs
 from cogs.vps_login_cog import VPSLogin
 from cogs.utils_commands_cog import Utils
 
+# Bot Modules
+from utils.data_utils import get_bot_token
 
 # ==============================
 # CONFIGURATION
 # ==============================
 
-# Configuration File Parsing
-config = configparser.ConfigParser()
-try:
-    config.read('config.ini')
-    TOKEN = config['Bot']['Token']
-except (configparser.Error, KeyError) as e:
-    raise SystemExit("Error reading configuration file.") from e
+TOKEN = get_bot_token()
 
 # Bot Command Intents
 intents = discord.Intents.default()
