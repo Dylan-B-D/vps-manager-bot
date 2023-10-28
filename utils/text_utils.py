@@ -1,15 +1,5 @@
-"""
-text_utils.py
+# util/text_utils.py
 
-This module contains utility functions to process and analyze text.
-
-Functions:
-- extract_ascii_art(message: str) -> str:
-    Extracts ASCII art from a given textual message, primarily designed to capture welcome messages from servers.
-
-Author: dbd
-Date: [Creation Date, October 27, 2023]
-"""
 
 #-------Tries to extracts the ASCII Welcome message on VPS Login------#
 
