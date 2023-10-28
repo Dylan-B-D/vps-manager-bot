@@ -5,6 +5,8 @@ import configparser
 import asyncssh
 import discord
 from discord.ext import commands
+from discord import app_commands
+
 
 # Local Modules
 from utils.text_utils import extract_ascii_art
@@ -29,15 +31,15 @@ class VPSLogin(commands.Cog):
                 }
         return vpses
 
-    @commands.command(name='login')
-    async def login(self, ctx, vps_name: str):
+    @app_commands.command(name="login", description="Login to a VPS server")
+    async def slash_login(self, interaction:discord.Interaction, vps_name: str):
         if vps_name not in self.vpses:
-            await ctx.send(f"No VPS found with the name: {vps_name}")
+            await interaction.response.send_message(f"No VPS found with the name: {vps_name}")
             return
 
         vps = self.vpses[vps_name]
         embed = discord.Embed(title=f"VPS Login - {vps_name}", description="Connecting to VPS... Please wait...", color=discord.Color.blue())
-        sent_embed = await ctx.send(embed=embed)
+        await interaction.response.send_message(embed=embed)
 
         try:
             async with asyncssh.connect(
@@ -51,20 +53,76 @@ class VPSLogin(commands.Cog):
                 description = f"```{ascii_art}```\n" if ascii_art else ""
                 description += f"**Log-in as {vps['Username']} Successful!**"
                 embed = discord.Embed(title=f"VPS Login - {vps_name}", description=description, color=discord.Color.green())
-                await sent_embed.edit(embed=embed)
-                self.login_states[(ctx.guild.id, ctx.channel.id)] = vps_name
+                await interaction.edit_original_response(embed=embed)
+                self.login_states[(interaction.guild.id, interaction.channel.id)] = vps_name
 
         except Exception as e:
             error_msg = "Connection failed" if "The semaphore timeout period has expired" in str(e) else str(e)
             embed = discord.Embed(title=f"VPS Login - {vps_name}", description=error_msg, color=discord.Color.red())
-            await sent_embed.edit(embed=embed)
+            await interaction.edit_original_response(embed=embed)
+
+    @app_commands.command(name="vpsresources", description="Check the resource usages of the logged-in VPS")
+    async def slash_vps_resources(self, interaction:discord.Interaction):
+        """Command to check the resource usages of the logged-in VPS."""
+        server_id = interaction.guild.id
+        channel_id = interaction.channel.id
+        vps_name = self.login_states.get((server_id, channel_id), None)
+
+        if not vps_name:
+            embed = discord.Embed(title="", description="No VPS is currently logged in for this channel.", color=discord.Color.red())
+            await interaction.response.send_message(embed=embed)
+            return
+
+        embed = discord.Embed(title=f"VPS Resources - {vps_name}", description="Establishing connection... Please wait...", color=discord.Color.blue())
+        await interaction.response.send_message(embed=embed)
+
+        vps = self.vpses[vps_name]
+
+        try:
+            async with asyncssh.connect(
+                vps['IP'],
+                username=vps['Username'],
+                password=vps['Password'],
+                known_hosts=None
+            ) as conn:
+                # Get basic resource usage using 'free -h' and 'df -h' commands
+                memory_result = await conn.run('free -h | tail -n +2')
+                disk_result = await conn.run('df -h / | tail -n +2')
+                
+                # Extract the top 5 processes using resources with 'ps'
+                top_processes_result = await conn.run("ps -eo pid,%cpu,%mem,cmd --sort=-%cpu | head -n 6")
+
+                # Parsing memory usage
+                mem_data = memory_result.stdout.split()
+                mem_usage = f"Total: {mem_data[0]}\nUsed: {mem_data[1]}\nFree: {mem_data[2]}\nShared: {mem_data[4]}\nBuff/Cache: {mem_data[5]}\nAvailable: {mem_data[6]}"
+
+                # Parsing disk usage
+                disk_data = disk_result.stdout.split()
+                disk_usage = f"Size: {disk_data[1]}\nUsed: {disk_data[2]}\nAvail: {disk_data[3]}\nUse%: {disk_data[4]}"
+                
+                # Parsing top processes
+                process_lines = top_processes_result.stdout.splitlines()[1:]  # Skip the header
+                top_processes = "\n".join([f"{i+1}. {line}" for i, line in enumerate(process_lines)])
+                
+                # Creating Embed
+                embed = discord.Embed(title=f"VPS Resources - {vps_name}", color=discord.Color.green())
+                embed.add_field(name="Memory Usage", value=f"```{mem_usage}```", inline=True)
+                embed.add_field(name="Disk Usage", value=f"```{disk_usage}```", inline=True)
+                embed.add_field(name="Top 5 CPU Processes", value=f"```{top_processes}```", inline=False)
+                await interaction.edit_original_response(embed=embed)
+
+        except Exception as e:
+            error_msg = "Connection failed" if "The semaphore timeout period has expired" in str(e) else str(e)
+            embed = discord.Embed(title=f"VPS Resources - {vps_name}", description=error_msg, color=discord.Color.red())
+            await interaction.edit_original_response(embed=embed)
 
 
-    @commands.command(name='currentvps')
-    async def current_vps(self, ctx):
+
+    @app_commands.command(name="currentvps", description="Show which vps is logged in in this channel")
+    async def slash_current_vps(self, interaction:discord.Interaction):
         """Command to check the current logged-in VPS for the channel."""
-        server_id = ctx.guild.id
-        channel_id = ctx.channel.id
+        server_id = interaction.guild.id
+        channel_id = interaction.channel.id
         vps_name = self.login_states.get((server_id, channel_id), None)
         
         embed = discord.Embed(color=discord.Color.blue())
@@ -76,4 +134,4 @@ class VPSLogin(commands.Cog):
             embed.title = ""
             embed.description = "No VPS is currently logged in for this channel."
         
-        await ctx.send(embed=embed)
+        await interaction.response.send_message(embed=embed)

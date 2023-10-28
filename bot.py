@@ -32,7 +32,7 @@ intents.message_content = True
 intents.members = True
 
 # Bot initialization
-bot = commands.Bot(command_prefix='!', intents=intents)
+bot = commands.Bot(command_prefix='/', intents=intents)
 bot.remove_command('help')
 
 
@@ -47,10 +47,13 @@ async def on_ready():
     await bot.add_cog(VPSLogin(bot))
     await bot.add_cog(Utils(bot))
 
+    await bot.tree.sync()
+
 
 @bot.event
-async def on_message(message):
-    await bot.process_commands(message)
+async def on_slash_command_error(ctx, error):
+    embed = discord.Embed(title="Error", description=str(error), color=discord.Color.red())
+    await ctx.send(embed=embed)
 
-
-bot.run(TOKEN)
+if __name__ == "__main__":
+    bot.run(TOKEN)
