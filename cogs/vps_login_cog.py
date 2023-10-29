@@ -1,3 +1,5 @@
+# cogs/vps_login_cog.py
+
 # Standard Libraries
 import configparser
 import os
@@ -16,6 +18,9 @@ from utils.data_utils import (save_login_state, load_from_bson, save_to_bson, lo
 
 # Initialize cache directory
 CACHE_DIR = setup_cache_directory()
+
+# Time before login state for channel expires
+TIMEOUT_SECONDS = 1800
 
 class VPSLogin(commands.Cog):
     def __init__(self, bot):
@@ -36,11 +41,11 @@ class VPSLogin(commands.Cog):
         current_time = datetime.utcnow()
         updated = False
 
-        for string_key, data in list(login_states.items()):  # Use list() to avoid modifying dict during iteration
+        for string_key, data in list(login_states.items()):
             key = tuple(map(int, string_key.split('_')))
             timestamp = data["timestamp"]
             difference = current_time - timestamp
-            if difference.total_seconds() > 1800:  # 30 minutes in seconds
+            if difference.total_seconds() > TIMEOUT_SECONDS:  # 30 minutes in seconds
                 del login_states[string_key]
                 updated = True
 
@@ -49,26 +54,15 @@ class VPSLogin(commands.Cog):
             save_to_bson(login_states, filepath)
 
     @app_commands.command(name="login", description="Login to a VPS server")
-    async def slash_login(self, interaction:discord.Interaction, vps_name: str):
-        if vps_name not in self.vpses:
-            await interaction.response.send_message(f"No VPS found with the name: {vps_name}")
-            return
-
-        vps = self.vpses[vps_name]
-        await send_response_embed(interaction, f"VPS Login - {vps_name}", "Connecting to VPS... Please wait...", discord.Color.blue())
-
-        conn = await establish_ssh_connection(vps)
-        try:
-            async with conn:
-                result = await conn.run('cat /etc/motd')
-                ascii_art = extract_ascii_art(result.stdout)
-                description = f"```{ascii_art}```\n" if ascii_art else ""
-                description += f"**Log-in as {vps['Username']} Successful!**"
-                await edit_response_embed(interaction, f"VPS Login - {vps_name}", description, discord.Color.green())
-                save_login_state((interaction.guild.id, interaction.channel.id), vps_name, os.path.join(CACHE_DIR, 'login_states.bson'))
-
-        except Exception as e:
-            await handle_connection_error(e, interaction, vps_name)
+    async def slash_login(self, interaction:discord.Interaction):
+        # Create a view with the available VPS names
+        view = SelectVPSView(self.vpses, self)
+        embed = discord.Embed(
+            title="VPS Login",
+            description="Choose a VPS from the dropdown menu below.",
+            color=discord.Color.blue()
+        )
+        await interaction.response.send_message(embed=embed, view=view)
 
 
 
@@ -78,16 +72,75 @@ class VPSLogin(commands.Cog):
         server_id = interaction.guild.id
         channel_id = interaction.channel.id
         string_key = f"{server_id}_{channel_id}"
-        vps_name = self.login_states.get(string_key, {}).get("vps_name", None)
-
         
+        # Get the latest login states
+        login_states = load_from_bson(os.path.join(CACHE_DIR, 'login_states.bson'))
+        
+        vps_name = login_states.get(string_key, {}).get("vps_name", None)
+        timestamp = login_states.get(string_key, {}).get("timestamp", None)
+
         embed = discord.Embed(color=discord.Color.blue())
         
-        if vps_name:
+        if vps_name and timestamp:
+            current_time = datetime.utcnow()
+            difference = current_time - timestamp
+            remaining_seconds = TIMEOUT_SECONDS - difference.total_seconds()
+            remaining_minutes = int(remaining_seconds // 60)
+
             embed.title = ""
-            embed.description = f"Currently logged in VPS for this channel: `{vps_name}`"
+            embed.description = f"Currently logged in VPS for this channel: `{vps_name}`\n"
+            embed.description += f"Time until loginstate expires: `{remaining_minutes} minutes`"
         else:
             embed.title = ""
             embed.description = "No VPS is currently logged in for this channel."
         
         await interaction.response.send_message(embed=embed)
+
+class VPSDropdown(discord.ui.Select):
+    def __init__(self, vpses, cog):
+        self.vpses = vpses
+        self.cog = cog  # Reference to the cog to access its methods and attributes
+
+        options = [
+            discord.SelectOption(label=name, value=name)
+            for name in vpses.keys()
+        ]
+        super().__init__(placeholder="Select a VPS to login", options=options)
+
+    async def callback(self, interaction: discord.Interaction):
+        vps_name = self.values[0]
+        vps = self.vpses[vps_name]
+
+        # Starting the login process
+        await send_response_embed(interaction, f"VPS Login - {vps_name}", "Connecting to VPS... Please wait...", discord.Color.blue())
+
+        try:
+            # Establishing an SSH connection to the VPS
+            conn = await establish_ssh_connection(vps)
+            async with conn:
+                # Running a command to fetch the MOTD or any other information
+                result = await conn.run('cat /etc/motd')
+                
+                # Extracting ASCII art if any, from the MOTD
+                ascii_art = extract_ascii_art(result.stdout)
+                description = f"```{ascii_art}```\n" if ascii_art else ""
+                description += f"**Log-in as {vps['Username']} Successful!**"
+                
+                # Sending a response to the user
+                await edit_response_embed(interaction, f"VPS Login - {vps_name}", description, discord.Color.green())
+                
+                # Saving the login state
+                save_login_state((interaction.guild.id, interaction.channel.id), vps_name, os.path.join(CACHE_DIR, 'login_states.bson'))
+
+        except Exception as e:
+            # Handling any connection errors
+            await handle_connection_error(e, interaction, vps_name)
+
+        finally:
+            # Removing the select menu after the login attempt
+            await interaction.message.edit(view=None)
+
+class SelectVPSView(discord.ui.View):
+    def __init__(self, vpses, interaction, timeout=15):
+        super().__init__(timeout=timeout)
+        self.add_item(VPSDropdown(vpses, interaction))

@@ -1,3 +1,5 @@
+# util/data_utils.py
+
 # Standard Libraries
 import os
 from datetime import datetime
@@ -59,7 +61,7 @@ def setup_cache_directory(base_filename=__file__):
     Set up the cache directory and return its path.
     """
     BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(base_filename), '..'))
-    CACHE_DIR = os.path.join(BASE_DIR, 'cache')
+    CACHE_DIR = os.path.join(BASE_DIR, 'data', 'cache')
 
     if not os.path.exists(CACHE_DIR):
         os.makedirs(CACHE_DIR)

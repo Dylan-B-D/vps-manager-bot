@@ -1,5 +1,4 @@
-# Standard Libraries
-import configparser
+# bot.py
 
 # Third-party Libraries
 import discord
@@ -26,7 +25,8 @@ intents.members = True
 # Bot initialization
 bot = commands.Bot(command_prefix='/', intents=intents)
 bot.remove_command('help')
-
+client = discord.Client(intents=intents)
+tree = discord.app_commands.CommandTree(client)
 
 # ==============================
 # BOT EVENTS
@@ -39,7 +39,7 @@ async def on_ready():
     await bot.add_cog(VPSLogin(bot))
     await bot.add_cog(Utils(bot))
 
-    await bot.tree.sync()
+    await bot.tree.sync(guild=discord.Object(id=1154371216451317834))
 
 
 @bot.event
