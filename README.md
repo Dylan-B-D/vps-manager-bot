@@ -1,13 +1,13 @@
 # vps-manager
 Work-in-progress bot to interact with a VPS through a discord bot.
-The idea is to be able to have each VPS ip, useranme and passoword defined in a config file,
-then you can "log-in" to any of these in a discord channel, and then exectute commands on the vps that is "logged-in"
+The idea is to be able to have each VPS IP, username and password defined in a config file,
+then you can "log in" to any of these in a discord channel, and then execute commands on the VPS that is "logged in"
 in that channel.
 
 # Available commands
 - /login - Lets you select a predefined VPS from the config file
-- /currentvps - Shows which vps is logged in the cvurrent channel, and the time until the "log-in" is valid for
-- /vpsresources - Shows details about the vps, such as:
+- /currentvps - Shows which VPS is logged in the current channel, and the time until the "log-in" is valid for
+- /vpsresources - Shows details about the VPS, such as:
     - CPU Usage
     - Memory Usage
     - Disk Usage
